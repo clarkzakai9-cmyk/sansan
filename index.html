@@ -3,82 +3,65 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI + Subway Surfers Offline</title>
+    <title>Subway Surfers: Offline Edition</title>
     <style>
-        body { font-family: sans-serif; background: #222; color: white; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .section { width: 100%; max-width: 800px; background: #333; padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        /* AI Styles */
-        #status { font-size: 12px; color: #aaa; margin-bottom: 10px; }
-        .progress-bar { width: 100%; background: #444; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 10px; }
-        #progress-inner { width: 0%; height: 100%; background: #4caf50; transition: width 0.3s; }
-        #chat-box { height: 200px; border: 1px solid #444; padding: 10px; overflow-y: auto; background: #1a1a1a; border-radius: 8px; margin-bottom: 10px; }
-        textarea { width: 100%; height: 50px; background: #444; color: white; border: none; padding: 10px; border-radius: 5px; box-sizing: border-box; }
-        /* Game Styles */
-        #game-container { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; }
-        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        button:disabled { background: #555; }
+        body { 
+            font-family: sans-serif; 
+            background: #1a1a1a; 
+            color: white; 
+            margin: 0; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+            height: 100vh; 
+            overflow: hidden; 
+        }
+        #game-wrapper { 
+            width: 95%; 
+            max-width: 1000px; 
+            aspect-ratio: 16/9; 
+            background: #000; 
+            border-radius: 12px; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
+            position: relative;
+        }
+        #status-bar {
+            position: absolute;
+            bottom: -30px;
+            left: 0;
+            font-size: 12px;
+            color: #888;
+        }
     </style>
 </head>
 <body>
 
-    <div class="section">
-        <h3>Local Qwen 0.5B AI</h3>
-        <div id="status">Status: Ready</div>
-        <div class="progress-bar"><div id="progress-inner"></div></div>
-        <button id="load-ai-btn">Download AI (400MB)</button>
-        <div id="chat-box"></div>
-        <textarea id="user-input" placeholder="Chat with AI..." disabled></textarea>
-        <button id="send-btn" style="margin-top:10px" disabled>Send</button>
-    </div>
-
-    <div class="section">
-        <h3>Subway Surfers: Barcelona</h3>
+    <div id="game-wrapper">
         <div id="game-container">
             </div>
+        <div id="status-bar">Offline Mode: Initializing...</div>
     </div>
 
-    <script type="module">
-        import * as webllm from "https://esm.run/@mlc-ai/web-llm";
-
-        // 1. Register Service Worker
+    <script>
+        // 1. Register Service Worker for Offline Game Access
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js');
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(() => document.getElementById('status-bar').innerText = "Offline Mode: Active")
+                    .catch(() => document.getElementById('status-bar').innerText = "Offline Mode: Failed");
+            });
         }
 
-        // 2. AI Logic
-        const modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
-        let engine;
-
-        document.getElementById('load-ai-btn').onclick = async () => {
-            document.getElementById('load-ai-btn').disabled = true;
-            engine = await webllm.CreateMLCEngine(modelId, {
-                initProgressCallback: (report) => {
-                    document.getElementById('status').innerText = report.text;
-                    document.getElementById('progress-inner').style.width = (report.progress * 100) + "%";
-                }
-            });
-            document.getElementById('user-input').disabled = false;
-            document.getElementById('send-btn').disabled = false;
-        };
-
-        document.getElementById('send-btn').onclick = async () => {
-            const input = document.getElementById('user-input').value;
-            const chatBox = document.getElementById('chat-box');
-            chatBox.innerHTML += `<div><b>You:</b> ${input}</div>`;
-            document.getElementById('user-input').value = "";
-            const reply = await engine.chat.completions.create({ messages: [{role: "user", content: input}] });
-            chatBox.innerHTML += `<div style="color:#4caf50"><b>AI:</b> ${reply.choices[0].message.content}</div>`;
-            chatBox.scrollTop = chatBox.scrollHeight;
-        };
-
-        // 3. Game Config
+        // 2. Unity Game Configuration
         window.config = {
             loader: "unity",
             title: 'Subway Surfers: Barcelona',
-            unityWebglBuildUrl: 'Barcelona.json',
+            unityWebglBuildUrl: 'Barcelona.json', // Must be in the same folder
             fileSize: 26,
         };
     </script>
+
     <script src="master-loader.js"></script>
     <script src="4399.ss.js"></script>
 </body>
