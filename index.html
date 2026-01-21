@@ -1,178 +1,85 @@
-
-<!-- Ultimate Game Stash file--> 
-<!-- For the regularly updating doc go to https://docs.google.com/document/d/1_FmH3BlSBQI7FGgAQL59-ZPe8eCxs35wel6JUyVaG8Q/ -->
-
-
-<base href="https://cdn.jsdelivr.net/gh/bubbls/subwaysurfersmerge/">
-<html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="utf-8" />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Subway Surfers: Barcelona</title>
-    <link rel="icon" href="img/FirstAvatar.png">
-    <script src="4399.ss.js"></script>
-    <script>
-        window.config = {
-            loader: "unity",
-            debug: false,
-            maxRatio: 16 / 9,
-            minRatio: 9 / 16,
-            title: 'Subway Surfers: Barcelona',
-            unityVersion: '2019.2.0f1',
-            unityWebglBuildUrl: 'Barcelona.json',
-            fileSize: 26,
-            cachedDecompressedFileSizes: {
-                'Barcelona.wasm.framework.unityweb': 537217,
-                'Barcelona.wasm.code.unityweb': 26475054,
-                'Barcelona.data.unityweb': 26686614,
-            },
-        };
-
-        window.mergedBlobUrls = {};
-        window.assetsReady = false;
-
-        async function mergeSplitFile(fileUrlBase, numParts = 2) {
-            const partUrls = Array.from({ length: numParts }, (_, i) => 
-                `${fileUrlBase}.part${i + 1}`
-            );
-
-            try {
-                const responses = await Promise.all(
-                    partUrls.map(url => fetch(url))
-                );
-
-                if (responses.some(r => !r.ok)) {
-                    return null;
-                }
-
-                const parts = await Promise.all(
-                    responses.map(r => r.arrayBuffer())
-                );
-
-                const combinedBlob = new Blob(parts, {
-                    type: 'application/octet-stream'
-                });
-
-                return URL.createObjectURL(combinedBlob);
-            } catch (error) {
-                return null;
-            }
-        }
-
-        function setupXHRInterceptor() {
-            if (window.xhrInterceptorInstalled) {
-                return;
-            }
-            
-            const originalOpen = XMLHttpRequest.prototype.open;
-            const originalSend = XMLHttpRequest.prototype.send;
-
-            XMLHttpRequest.prototype.open = function(method, url, ...args) {
-                this._url = url;
-                this._method = method;
-                this._args = args;
-                
-                let finalUrl = url;
-                for (const [filename, blobUrl] of Object.entries(window.mergedBlobUrls)) {
-                    if (url.includes(filename)) {
-                        finalUrl = blobUrl;
-                        break;
-                    }
-                }
-                
-                return originalOpen.call(this, method, finalUrl, ...args);
-            };
-
-            XMLHttpRequest.prototype.send = function(...args) {
-                const xhr = this;
-                
-                if (!window.assetsReady) {
-                    const checkReady = setInterval(() => { 
-                        if (window.assetsReady) {
-                            clearInterval(checkReady);
-                            originalSend.apply(xhr, args);
-                        }
-                    }, 50);
-                    return;
-                }
-                
-                return originalSend.apply(this, args);
-            };
-            
-            window.xhrInterceptorInstalled = true;
-        }
-
-        async function prepareGameAssets() {
-            try {
-                window.assetsReady = false;
-                delete window.xhrInterceptorInstalled;
-                window.mergedBlobUrls = {};
-                
-                setupXHRInterceptor();
-                
-                const filesToMerge = [
-                    'Barcelona.data.unityweb',
-                    'Barcelona.wasm.code.unityweb'
-                ];
-                 
-                for (const filename of filesToMerge) {
-                    const blobUrl = await mergeSplitFile(filename, 2);
-                    if (blobUrl) {
-                        window.mergedBlobUrls[filename] = blobUrl;
-                    }
-                }
-                
-                window.assetsPrepared = true;
-                window.assetsReady = true;
-                
-            } catch (error) {
-                window.assetsPrepared = false;
-                window.assetsReady = true;
-            }
-        }
-
-        prepareGameAssets();
-
-    </script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI + Subway Surfers Offline</title>
+    <style>
+        body { font-family: sans-serif; background: #222; color: white; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .section { width: 100%; max-width: 800px; background: #333; padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        /* AI Styles */
+        #status { font-size: 12px; color: #aaa; margin-bottom: 10px; }
+        .progress-bar { width: 100%; background: #444; height: 10px; border-radius: 5px; overflow: hidden; margin-bottom: 10px; }
+        #progress-inner { width: 0%; height: 100%; background: #4caf50; transition: width 0.3s; }
+        #chat-box { height: 200px; border: 1px solid #444; padding: 10px; overflow-y: auto; background: #1a1a1a; border-radius: 8px; margin-bottom: 10px; }
+        textarea { width: 100%; height: 50px; background: #444; color: white; border: none; padding: 10px; border-radius: 5px; box-sizing: border-box; }
+        /* Game Styles */
+        #game-container { width: 100%; aspect-ratio: 16/9; background: #000; border-radius: 8px; overflow: hidden; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:disabled { background: #555; }
+    </style>
 </head>
 <body>
+
+    <div class="section">
+        <h3>Local Qwen 0.5B AI</h3>
+        <div id="status">Status: Ready</div>
+        <div class="progress-bar"><div id="progress-inner"></div></div>
+        <button id="load-ai-btn">Download AI (400MB)</button>
+        <div id="chat-box"></div>
+        <textarea id="user-input" placeholder="Chat with AI..." disabled></textarea>
+        <button id="send-btn" style="margin-top:10px" disabled>Send</button>
+    </div>
+
+    <div class="section">
+        <h3>Subway Surfers: Barcelona</h3>
+        <div id="game-container">
+            </div>
+    </div>
+
+    <script type="module">
+        import * as webllm from "https://esm.run/@mlc-ai/web-llm";
+
+        // 1. Register Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('./sw.js');
+        }
+
+        // 2. AI Logic
+        const modelId = "Qwen2.5-0.5B-Instruct-q4f16_1-MLC";
+        let engine;
+
+        document.getElementById('load-ai-btn').onclick = async () => {
+            document.getElementById('load-ai-btn').disabled = true;
+            engine = await webllm.CreateMLCEngine(modelId, {
+                initProgressCallback: (report) => {
+                    document.getElementById('status').innerText = report.text;
+                    document.getElementById('progress-inner').style.width = (report.progress * 100) + "%";
+                }
+            });
+            document.getElementById('user-input').disabled = false;
+            document.getElementById('send-btn').disabled = false;
+        };
+
+        document.getElementById('send-btn').onclick = async () => {
+            const input = document.getElementById('user-input').value;
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML += `<div><b>You:</b> ${input}</div>`;
+            document.getElementById('user-input').value = "";
+            const reply = await engine.chat.completions.create({ messages: [{role: "user", content: input}] });
+            chatBox.innerHTML += `<div style="color:#4caf50"><b>AI:</b> ${reply.choices[0].message.content}</div>`;
+            chatBox.scrollTop = chatBox.scrollHeight;
+        };
+
+        // 3. Game Config
+        window.config = {
+            loader: "unity",
+            title: 'Subway Surfers: Barcelona',
+            unityWebglBuildUrl: 'Barcelona.json',
+            fileSize: 26,
+        };
+    </script>
     <script src="master-loader.js"></script>
-<!-- Code injected by live-server -->
-<script>
-	// <![CDATA[  <-- For SVG support
-	if ('WebSocket' in window) {
-		(function () {
-			function refreshCSS() {
-				var sheets = [].slice.call(document.getElementsByTagName("link"));
-				var head = document.getElementsByTagName("head")[0];
-				for (var i = 0; i < sheets.length; ++i) {
-					var elem = sheets[i];
-					var parent = elem.parentElement || head;
-					parent.removeChild(elem);
-					var rel = elem.rel;
-					if (elem.href && typeof rel != "string" || rel.length == 0 || rel.toLowerCase() == "stylesheet") {
-						var url = elem.href.replace(/(&|\?)_cacheOverride=\d+/, '');
-						elem.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + '_cacheOverride=' + (new Date().valueOf());
-					}
-					parent.appendChild(elem);
-				}
-			}
-			var protocol = window.location.protocol === 'http:' ? 'ws://' : 'wss://';
-			var address = protocol + window.location.host + window.location.pathname + '/ws';
-			var socket = new WebSocket(address);
-			socket.onmessage = function (msg) {
-				if (msg.data == 'reload') window.location.reload();
-				else if (msg.data == 'refreshcss') refreshCSS();
-			};
-			if (sessionStorage && !sessionStorage.getItem('IsThisFirstTime_Log_From_LiveServer')) {
-				console.log('Live reload enabled.');
-				sessionStorage.setItem('IsThisFirstTime_Log_From_LiveServer', true);
-			}
-		})();
-	}
-	else {
-		console.error('Upgrade your browser. This Browser is NOT supported WebSocket for Live-Reloading.');
-	}
-	// ]]>
-</script>
+    <script src="4399.ss.js"></script>
 </body>
 </html>
