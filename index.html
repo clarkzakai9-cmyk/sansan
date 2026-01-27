@@ -3,8 +3,45 @@
 <head>
     <meta charset="utf-8" />
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Subway Surfers: Barcelona</title>
+    
+    <link rel="manifest" href="manifest.json">
     <link rel="icon" href="img/FirstAvatar.png">
+    
+    <style>
+        /* Style for the Download Button */
+        #installBtn {
+            display: none; /* Hidden by default, shown if install is available */
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            background-color: #28a745; /* Green color */
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            transition: transform 0.2s, background-color 0.2s;
+        }
+
+        #installBtn:hover {
+            background-color: #218838;
+            transform: scale(1.05);
+        }
+
+        #installBtn:active {
+            transform: scale(0.95);
+        }
+        
+        body { margin: 0; overflow: hidden; background: #000; }
+    </style>
+
     <script src="4399.ss.js"></script>
     <script>
         window.config = {
@@ -36,18 +73,13 @@
                     partUrls.map(url => fetch(url))
                 );
 
-                if (responses.some(r => !r.ok)) {
-                    return null;
-                }
+                if (responses.some(r => !r.ok)) return null;
 
                 const parts = await Promise.all(
                     responses.map(r => r.arrayBuffer())
                 );
 
-                const combinedBlob = new Blob(parts, {
-                    type: 'application/octet-stream'
-                });
-
+                const combinedBlob = new Blob(parts, { type: 'application/octet-stream' });
                 return URL.createObjectURL(combinedBlob);
             } catch (error) {
                 console.error("Error merging files:", error);
@@ -56,33 +88,24 @@
         }
 
         function setupXHRInterceptor() {
-            if (window.xhrInterceptorInstalled) {
-                return;
-            }
+            if (window.xhrInterceptorInstalled) return;
             
             const originalOpen = XMLHttpRequest.prototype.open;
             const originalSend = XMLHttpRequest.prototype.send;
 
             XMLHttpRequest.prototype.open = function(method, url, ...args) {
-                this._url = url;
-                this._method = method;
-                this._args = args;
-                
                 let finalUrl = url;
                 for (const [filename, blobUrl] of Object.entries(window.mergedBlobUrls)) {
-                    // Check if the requested URL contains the filename
                     if (url.includes(filename)) {
                         finalUrl = blobUrl;
                         break;
                     }
                 }
-                
                 return originalOpen.call(this, method, finalUrl, ...args);
             };
 
             XMLHttpRequest.prototype.send = function(...args) {
                 const xhr = this;
-                
                 if (!window.assetsReady) {
                     const checkReady = setInterval(() => { 
                         if (window.assetsReady) {
@@ -92,10 +115,8 @@
                     }, 50);
                     return;
                 }
-                
                 return originalSend.apply(this, args);
             };
-            
             window.xhrInterceptorInstalled = true;
         }
 
@@ -104,50 +125,65 @@
                 window.assetsReady = false;
                 delete window.xhrInterceptorInstalled;
                 window.mergedBlobUrls = {};
-                
                 setupXHRInterceptor();
                 
-                const filesToMerge = [
-                    'Barcelona.data.unityweb',
-                    'Barcelona.wasm.code.unityweb'
-                ];
-                 
+                const filesToMerge = ['Barcelona.data.unityweb', 'Barcelona.wasm.code.unityweb'];
                 for (const filename of filesToMerge) {
                     const blobUrl = await mergeSplitFile(filename, 2);
-                    if (blobUrl) {
-                        window.mergedBlobUrls[filename] = blobUrl;
-                    }
+                    if (blobUrl) window.mergedBlobUrls[filename] = blobUrl;
                 }
-                
-                window.assetsPrepared = true;
                 window.assetsReady = true;
-                
             } catch (error) {
-                console.error("Asset preparation failed:", error);
-                window.assetsPrepared = false;
+                console.error("Asset prep failed:", error);
                 window.assetsReady = true;
             }
         }
-
         prepareGameAssets();
-
     </script>
 </head>
 <body>
+    <button id="installBtn">⬇ Download Game</button>
+
     <script src="master-loader.js"></script>
 
     <script>
+        // 1. Register Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 navigator.serviceWorker.register('sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(err => {
-                        console.log('ServiceWorker registration failed: ', err);
-                    });
+                    .then(reg => console.log('SW Registered!', reg.scope))
+                    .catch(err => console.log('SW Failed:', err));
             });
         }
+
+        // 2. Handle Install Button Logic
+        let deferredPrompt;
+        const installBtn = document.getElementById('installBtn');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            // Prevent Chrome 67 and earlier from automatically showing the prompt
+            e.preventDefault();
+            // Stash the event so it can be triggered later.
+            deferredPrompt = e;
+            // Update UI to notify the user they can add to home screen
+            installBtn.style.display = 'block';
+        });
+
+        installBtn.addEventListener('click', (e) => {
+            // Hide the button
+            installBtn.style.display = 'none';
+            // Show the prompt
+            deferredPrompt.prompt();
+            // Wait for the user to respond to the prompt
+            deferredPrompt.userChoice.then((choiceResult) => {
+                if (choiceResult.outcome === 'accepted') {
+                    console.log('User accepted the A2HS prompt');
+                } else {
+                    console.log('User dismissed the A2HS prompt');
+                }
+                deferredPrompt = null;
+            });
+        });
     </script>
 </body>
 </html>
