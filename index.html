@@ -1,68 +1,153 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Subway Surfers: Offline Edition</title>
-    <style>
-        body { 
-            font-family: sans-serif; 
-            background: #1a1a1a; 
-            color: white; 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            height: 100vh; 
-            overflow: hidden; 
-        }
-        #game-wrapper { 
-            width: 95%; 
-            max-width: 1000px; 
-            aspect-ratio: 16/9; 
-            background: #000; 
-            border-radius: 12px; 
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5); 
-            position: relative;
-        }
-        #status-bar {
-            position: absolute;
-            bottom: -30px;
-            left: 0;
-            font-size: 12px;
-            color: #888;
-        }
-    </style>
-</head>
-<body>
-
-    <div id="game-wrapper">
-        <div id="game-container">
-            </div>
-        <div id="status-bar">Offline Mode: Initializing...</div>
-    </div>
-
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Subway Surfers: Barcelona</title>
+    <link rel="icon" href="img/FirstAvatar.png">
+    <script src="4399.ss.js"></script>
     <script>
-        // 1. Register Service Worker for Offline Game Access
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(() => document.getElementById('status-bar').innerText = "Offline Mode: Active")
-                    .catch(() => document.getElementById('status-bar').innerText = "Offline Mode: Failed");
-            });
-        }
-
-        // 2. Unity Game Configuration
         window.config = {
             loader: "unity",
+            debug: false,
+            maxRatio: 16 / 9,
+            minRatio: 9 / 16,
             title: 'Subway Surfers: Barcelona',
-            unityWebglBuildUrl: 'Barcelona.json', // Must be in the same folder
+            unityVersion: '2019.2.0f1',
+            unityWebglBuildUrl: 'Barcelona.json',
             fileSize: 26,
+            cachedDecompressedFileSizes: {
+                'Barcelona.wasm.framework.unityweb': 537217,
+                'Barcelona.wasm.code.unityweb': 26475054,
+                'Barcelona.data.unityweb': 26686614,
+            },
         };
-    </script>
 
+        window.mergedBlobUrls = {};
+        window.assetsReady = false;
+
+        async function mergeSplitFile(fileUrlBase, numParts = 2) {
+            const partUrls = Array.from({ length: numParts }, (_, i) => 
+                `${fileUrlBase}.part${i + 1}`
+            );
+
+            try {
+                const responses = await Promise.all(
+                    partUrls.map(url => fetch(url))
+                );
+
+                if (responses.some(r => !r.ok)) {
+                    return null;
+                }
+
+                const parts = await Promise.all(
+                    responses.map(r => r.arrayBuffer())
+                );
+
+                const combinedBlob = new Blob(parts, {
+                    type: 'application/octet-stream'
+                });
+
+                return URL.createObjectURL(combinedBlob);
+            } catch (error) {
+                console.error("Error merging files:", error);
+                return null;
+            }
+        }
+
+        function setupXHRInterceptor() {
+            if (window.xhrInterceptorInstalled) {
+                return;
+            }
+            
+            const originalOpen = XMLHttpRequest.prototype.open;
+            const originalSend = XMLHttpRequest.prototype.send;
+
+            XMLHttpRequest.prototype.open = function(method, url, ...args) {
+                this._url = url;
+                this._method = method;
+                this._args = args;
+                
+                let finalUrl = url;
+                for (const [filename, blobUrl] of Object.entries(window.mergedBlobUrls)) {
+                    // Check if the requested URL contains the filename
+                    if (url.includes(filename)) {
+                        finalUrl = blobUrl;
+                        break;
+                    }
+                }
+                
+                return originalOpen.call(this, method, finalUrl, ...args);
+            };
+
+            XMLHttpRequest.prototype.send = function(...args) {
+                const xhr = this;
+                
+                if (!window.assetsReady) {
+                    const checkReady = setInterval(() => { 
+                        if (window.assetsReady) {
+                            clearInterval(checkReady);
+                            originalSend.apply(xhr, args);
+                        }
+                    }, 50);
+                    return;
+                }
+                
+                return originalSend.apply(this, args);
+            };
+            
+            window.xhrInterceptorInstalled = true;
+        }
+
+        async function prepareGameAssets() {
+            try {
+                window.assetsReady = false;
+                delete window.xhrInterceptorInstalled;
+                window.mergedBlobUrls = {};
+                
+                setupXHRInterceptor();
+                
+                const filesToMerge = [
+                    'Barcelona.data.unityweb',
+                    'Barcelona.wasm.code.unityweb'
+                ];
+                 
+                for (const filename of filesToMerge) {
+                    const blobUrl = await mergeSplitFile(filename, 2);
+                    if (blobUrl) {
+                        window.mergedBlobUrls[filename] = blobUrl;
+                    }
+                }
+                
+                window.assetsPrepared = true;
+                window.assetsReady = true;
+                
+            } catch (error) {
+                console.error("Asset preparation failed:", error);
+                window.assetsPrepared = false;
+                window.assetsReady = true;
+            }
+        }
+
+        prepareGameAssets();
+
+    </script>
+</head>
+<body>
     <script src="master-loader.js"></script>
-    <script src="4399.ss.js"></script>
+
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>
