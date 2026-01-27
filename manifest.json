@@ -1,0 +1,21 @@
+{
+  "name": "Subway Surfers: Barcelona",
+  "short_name": "SubwaySurf",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#0f0f0f",
+  "description": "Play Subway Surfers Barcelona Offline",
+  "icons": [
+    {
+      "src": "img/FirstAvatar.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "img/FirstAvatar.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
